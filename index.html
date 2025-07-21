@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Studio & Audio Booking</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      padding: 20px;
+      gap: 30px;
+    }
+    .form-section {
+      width: 300px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .grid-section {
+      flex-grow: 1;
+    }
+    .slot-box {
+      display: inline-block;
+      border: 1px solid #ccc;
+      padding: 8px 10px;
+      margin: 5px;
+      border-radius: 6px;
+      background-color: #e0f7fa;
+    }
+    .slot-box.full {
+      background-color: #ffcdd2;
+      text-decoration: line-through;
+    }
+    .slot-box.partial {
+      background-color: #fff9c4;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="form-section">
+    <h2>Book a Slot</h2>
+    <input type="text" id="name" placeholder="Your Name">
+    <input type="text" id="team" placeholder="Team Name">
+    <input type="text" id="script" placeholder="Script Name">
+
+    <select id="duration">
+      <option value="1.5">1.5 Hours</option>
+      <option value="3">3 Hours</option>
+    </select>
+
+    <select id="date"></select>
+    <select id="slot">
+      <option value="FN">FN (Forenoon)</option>
+      <option value="AN">AN (Afternoon)</option>
+    </select>
+
+    <select id="type">
+      <option value="Studio">Studio</option>
+      <option value="Audio">Audio</option>
+    </select>
+
+    <button onclick="submitBooking()">Submit</button>
+    <p id="responseMsg"></p>
+  </div>
+
+  <div class="grid-section">
+    <h2>Availability (Next 7 Days)</h2>
+    <div id="availabilityGrid"></div>
+  </div>
+
+  <script>
+    const backendURL = "https://script.googleusercontent.com/a/macros/tnschools.gov.in/echo?user_content_key=AehSKLhYzV0a8j2CldGlK32Bfu330SrmEF6gETwFVDETHtDmeXe2pHHG6IsoR3fz8yVi_TbcBtzD0UY_TmQKHnZ3JgiUJ-GLW1quxK7oQTiQSvr9tVXC96yRp7gWzY0D4KYOK-lGca0xtiDSXoJxNgiDUy5XdP7TTl-0VlkrCvvYNSh9O6z01K9jKcwIYNzi-jDPNjlWFXr5v2BMz-ZFIFg2ZrQ9G2LC71tin25lHfNo78nffX9sS4u45_DcHnu4JLNdMRzgKXbflZk0uVUQ2JRvVgr0SpDz3YCKH3MZ9AnHKUFP5yMLJGXhx7w_UZbN4Q&lib=MlILT8x35v1HziaNOK-C8a3O7ZhzV92FR"; // 🔁 Replace this with your Google Apps Script Web App URL
+
+    async function fetchAvailability() {
+      const res = await fetch(backendURL + "?action=availability");
+      const data = await res.json();
+
+      // Update dropdown
+      const dateSelect = document.getElementById("date");
+      const uniqueDates = [...new Set(data.map(d => d.Date))];
+      uniqueDates.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        dateSelect.appendChild(opt);
+      });
+
+      // Build grid
+      const grid = document.getElementById("availabilityGrid");
+      grid.innerHTML = "";
+      data.forEach(slot => {
+        const box = document.createElement("div");
+        box.className = "slot-box";
+        const rem = parseFloat(slot["Remaining Duration"]);
+        const total = parseFloat(slot["Total Duration"]);
+
+        if (rem <= 0) {
+          box.classList.add("full");
+        } else if (rem < total) {
+          box.classList.add("partial");
+        }
+
+        box.innerText = `${slot.Date} ${slot.Day} ${slot.Slot} (${rem}h left)`;
+        grid.appendChild(box);
+      });
+    }
+
+    async function submitBooking() {
+      const payload = {
+        name: document.getElementById("name").value,
+        team: document.getElementById("team").value,
+        script: document.getElementById("script").value,
+        duration: document.getElementById("duration").value,
+        date: document.getElementById("date").value,
+        slot: document.getElementById("slot").value,
+        type: document.getElementById("type").value,
+      };
+
+      const res = await fetch(backendURL, {
+        method: "POST",
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" }
+      });
+
+      const msg = await res.text();
+      document.getElementById("responseMsg").innerText = msg;
+      fetchAvailability(); // Refresh availability
+    }
+
+    fetchAvailability(); // Initial load
+  </script>
+
+</body>
+</html>
